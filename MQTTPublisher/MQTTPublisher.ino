@@ -7,15 +7,20 @@
 
 #define topicButtonPresses "onpu/buttonpresses"
 #define topicAccelerometer "onpu/accelerometer"
+#define topicSubCounter "onpu/#"
+
 
 BMA222 accelerometer;
 char deviceID[] = "000000000000";
 char buf[100];
 char ssid[] = "IT-SEA";
 char password[] = "IHSITOPon2014";
-char server[] = "198.41.30.241";
+char server[] = "198.41.30.241"; //iot.eclipse.org
+//char server[] = "141.82.100.21";
 int previousMillis = 0;
 int previousMillisAccData = 0;
+int previousMillisSub = 0;
+int pauseSub = 5000;
 int pause = 50; // Between the loops
 int pausePublish = 5000;
 uint32_t push1cnt = 0;
@@ -24,6 +29,7 @@ double accDataResult = 0;
 WiFiClient wiFiClient;
 PubSubClient client(server, 1883, callback, wiFiClient);
 
+uint8_t subscribedCounter = 0;
 
 
 
@@ -61,40 +67,6 @@ void printConnectionAttempt() {
 
 void loop()
 {
- /*static int currentMillis = 0;
- currentMillis = millis();
- if (currentMillis > previousMillis + pause) {
-   previousMillis = currentMillis;
-   if (client.connected()) {
-     // publish accelerometer
-       Serial.print("Publishing accelerometer: ");
-       sprintf(buf, "X: %d, Y:%d, Z:%d", accDataX, accDataY, accDataZ);
-       Serial.println(buf);
-       if (client.publish(topicAccelerometer, buf)) 
-         Serial.println("Publish accelerometer success!");
-       else
-         Serial.println("Publish accelerometer failed!");
-     if (flag1) {
-       flag1 = 0;
-       // publish button
-       Serial.print("Publishing button: ");
-       sprintf(buf, "%d", push1cnt);
-       Serial.println(buf);
-       if (client.publish(topicButtonPresses, buf)) 
-         Serial.println("Publish button success!");
-       else
-         Serial.println("Publish button failed!");
-     } 
-   }
-   else {
-     Serial.println("Disconnected. Reconnecting..");
-     if (!client.connect(deviceID))
-       Serial.println("Connection failed!");
-     else
-       Serial.println("Connection success!");
-   }
- }*/
-  
  static int currentMillis = 0;
  currentMillis = millis();
  if (currentMillis > previousMillis + pausePublish) {
@@ -117,11 +89,6 @@ void loop()
      else
        Serial.println("Connection success!");
    }
-   
-   
-   
-
-//   Serial.println(accelerometer.readXData());
  } 
    static int currentMillisAccData = 0;
    currentMillisAccData = millis();
@@ -133,6 +100,27 @@ void loop()
      double tmp = sqrt(x * x + y * y + z * z);
      if (tmp > accDataResult)
        accDataResult = tmp;
+   }
+   
+   static int currentMillisSub = 0;
+   currentMillisSub = millis();
+   if (currentMillisSub > previousMillisSub + pauseSub) {
+     if (client.connected()) {
+       if (!subscribedCounter) {
+         if (client.subscribe(topicSubCounter)) {
+//           Serial.println("Subscription succesful");
+           subscribedCounter = 1;
+         }
+         else {
+//           Serial.println("Subscription failed");
+         }
+       }
+     }
+     if (subscribedCounter) {
+       //Serial.print("client polling... ");
+       client.poll();
+       //Serial.println("done!");
+     }
    }
 }
 
@@ -162,5 +150,9 @@ void printWifiStatus() {
 }  
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  
+  Serial.print("Received message for topic ");
+  Serial.println(topic);
+  Serial.println("Message: ");
+  Serial.write(payload, length);
+  Serial.println();
 }
